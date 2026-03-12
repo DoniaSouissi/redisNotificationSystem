@@ -3,635 +3,532 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Pulse - Real-Time Notifications</title>
+    <title>Redis Notification System</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=DM+Mono:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
     <style>
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
         :root {
-            --bg-base:       #07080c;
-            --bg-surface:    #0d0f16;
-            --bg-elevated:   #131520;
-            --bg-hover:      #1a1c27;
-            --border:        rgba(255,255,255,0.055);
-            --border-bright: rgba(255,255,255,0.11);
-            --border-focus:  rgba(255,255,255,0.18);
+            --bg-base:       #0a0712;
+            --bg-gradient:   linear-gradient(135deg, #0a0712 0%, #120f1c 50%, #1a1226 100%);
+            --bg-purple:     #1c112a;
+            --bg-glass:      rgba(28, 17, 42, 0.52);
+            --bg-hover:      rgba(45, 30, 60, 0.58);
 
-            --cyan:       #00e5c3;
-            --cyan-dim:   rgba(0,229,195,0.10);
-            --cyan-glow:  rgba(0,229,195,0.22);
-            --cyan-mid:   rgba(0,229,195,0.35);
+            --border-pink:   rgba(255, 105, 180, 0.42);
+            --border-glow:   rgba(255, 105, 180, 0.20);
+            --border-focus:  rgba(255, 105, 180, 0.60);
 
-            --red:        #ff4d6a;
-            --red-dim:    rgba(255,77,106,0.10);
-            --red-glow:   rgba(255,77,106,0.20);
+            --pink:          #ff69b4;
+            --pink-dim:      rgba(255, 105, 180, 0.16);
+            --pink-glow:     rgba(255, 105, 180, 0.24);
 
-            --green:      #2effa0;
-            --green-dim:  rgba(46,255,160,0.10);
-            --green-glow: rgba(46,255,160,0.20);
+            --purple:        #c084fc;
+            --purple-dim:    rgba(192, 132, 252, 0.14);
+            --purple-glow:   rgba(192, 132, 252, 0.12);
 
-            --amber:      #ffb547;
-            --amber-dim:  rgba(255,181,71,0.10);
+            --text-primary:  #f5f0ff;
+            --text-secondary:#c4b5e0;
+            --text-muted:    #8a7bad;
 
-            --text-primary:   #e6e9f4;
-            --text-secondary: #888ca8;
-            --text-muted:     #42465a;
+            --radius-xs: 6px;
+            --radius-sm: 10px;
+            --radius-md: 16px;
+            --radius-lg: 24px;
+            --radius-xl: 32px;
 
-            --radius-xs: 4px;
-            --radius-sm: 8px;
-            --radius-md: 12px;
-            --radius-lg: 18px;
-            --radius-xl: 24px;
+            --font-display: 'Syne', system-ui, sans-serif;
+            --font-mono:    'DM Mono', ui-monospace, monospace;
 
-            --font-display: 'Syne', sans-serif;
-            --font-mono:    'DM Mono', monospace;
-
-            --ease-spring: cubic-bezier(0.16, 1, 0.3, 1);
+            --ease-spring: cubic-bezier(0.16, 1, 0.3, 1.2);
         }
 
         html { scroll-behavior: smooth; }
 
         body {
             font-family: var(--font-mono);
-            background: var(--bg-base);
+            background: var(--bg-gradient);
             color: var(--text-primary);
             min-height: 100vh;
             overflow-x: hidden;
+            position: relative;
         }
 
-        /* ---- Ambient background layers ---- */
         body::before {
             content: '';
             position: fixed; inset: 0;
-            background:
-                radial-gradient(ellipse 65% 50% at 75% 0%,   rgba(0,229,195,0.08)  0%, transparent 65%),
-                radial-gradient(ellipse 50% 45% at 5%  90%,  rgba(255,77,106,0.06) 0%, transparent 60%),
-                radial-gradient(ellipse 40% 35% at 50% 50%,  rgba(46,255,160,0.03) 0%, transparent 55%);
-            pointer-events: none; z-index: 0;
+            background: radial-gradient(circle at 30% 70%, rgba(192,132,252,0.09) 0%, transparent 65%);
+            pointer-events: none;
+            z-index: -1;
         }
 
-        body::after {
-            content: '';
-            position: fixed; inset: 0;
-            background-image:
-                linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
-                linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
-            background-size: 44px 44px;
-            pointer-events: none; z-index: 0;
-        }
-
-        /* ---- Layout ---- */
+        /* Layout */
         .app-wrapper {
             position: relative; z-index: 1;
-            max-width: 680px;
+            max-width: 700px;
             margin: 0 auto;
-            padding: 52px 24px 96px;
+            padding: 60px 24px 100px;
         }
 
-        /* ---- Header ---- */
+        /* Header */
         .app-header {
             display: flex;
             align-items: center;
-            gap: 16px;
-            margin-bottom: 32px;
-            animation: slideDown 0.7s var(--ease-spring) both;
+            gap: 18px;
+            margin-bottom: 36px;
+            animation: slideDown 0.8s var(--ease-spring) both;
         }
 
         .logo-mark {
-            width: 44px; height: 44px;
-            background: var(--cyan-dim);
-            border: 1px solid rgba(0,229,195,0.35);
-            border-radius: var(--radius-sm);
+            width: 50px; height: 50px;
+            background: var(--pink-dim);
+            border: 1px solid var(--border-pink);
+            border-radius: var(--radius-md);
             display: flex; align-items: center; justify-content: center;
-            box-shadow: 0 0 28px var(--cyan-glow), inset 0 1px 0 rgba(255,255,255,0.06);
+            box-shadow: 0 0 28px var(--pink-glow), inset 0 1px 0 rgba(255,255,255,0.08);
+            backdrop-filter: blur(8px);
             flex-shrink: 0;
             position: relative;
             overflow: hidden;
         }
 
-        .logo-mark::after {
-            content: '';
-            position: absolute; inset: 0;
-            background: linear-gradient(135deg, rgba(255,255,255,0.08) 0%, transparent 60%);
-        }
-
-        .logo-mark svg { color: var(--cyan); position: relative; z-index: 1; }
+        .logo-mark svg { color: var(--pink); position: relative; z-index: 1; }
 
         .header-text { flex: 1; }
 
         .app-title {
             font-family: var(--font-display);
-            font-size: 1.75rem;
+            font-size: 1.9rem;
             font-weight: 800;
             letter-spacing: -0.04em;
             color: #fff;
             line-height: 1;
         }
 
-        .app-title .dot { color: var(--cyan); }
+        .app-title .dot { color: var(--pink); }
 
         .app-sub {
-            font-size: 0.7rem;
+            font-size: 0.74rem;
             color: var(--text-muted);
-            letter-spacing: 0.14em;
+            letter-spacing: 0.13em;
             text-transform: uppercase;
-            margin-top: 5px;
+            margin-top: 6px;
             font-style: italic;
         }
 
         .live-badge {
-            display: flex; align-items: center; gap: 7px;
-            padding: 6px 14px;
-            background: var(--green-dim);
-            border: 1px solid rgba(46,255,160,0.22);
+            display: flex; align-items: center; gap: 8px;
+            padding: 7px 15px;
+            background: var(--purple-dim);
+            border: 1px solid var(--border-pink);
             border-radius: 100px;
-            font-size: 0.68rem;
-            color: var(--green);
+            font-size: 0.7rem;
+            color: var(--purple);
             letter-spacing: 0.12em;
             text-transform: uppercase;
             font-weight: 500;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 0 16px var(--pink-glow);
         }
 
         .live-dot {
-            width: 6px; height: 6px;
+            width: 7px; height: 7px;
             border-radius: 50%;
-            background: var(--green);
-            animation: pulse-dot 2.2s ease-in-out infinite;
+            background: var(--pink);
+            box-shadow: 0 0 12px var(--pink-glow);
+            animation: pulse-dot 2.4s ease-in-out infinite;
         }
 
-        /* ---- Status Bar ---- */
+        /* Status Bar */
         .status-bar {
             display: flex; align-items: center; justify-content: space-between;
-            margin-bottom: 24px;
-            padding: 10px 18px;
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-sm);
-            animation: slideDown 0.6s 0.08s var(--ease-spring) both;
+            margin-bottom: 28px;
+            padding: 12px 20px;
+            background: var(--bg-glass);
+            border: 1px solid var(--border-pink);
+            border-radius: var(--radius-lg);
+            backdrop-filter: blur(12px);
+            box-shadow: 0 0 20px var(--pink-glow);
+            animation: slideDown 0.7s 0.1s var(--ease-spring) both;
         }
 
         .status-left {
-            display: flex; align-items: center; gap: 12px;
-            font-size: 0.7rem;
+            display: flex; align-items: center; gap: 14px;
+            font-size: 0.74rem;
             color: var(--text-muted);
-            letter-spacing: 0.07em;
         }
 
-        .status-sep { color: var(--border-bright); }
+        .status-sep { color: var(--border-pink); opacity: 0.6; }
 
         .ws-status {
-            display: flex; align-items: center; gap: 6px;
-            font-size: 0.7rem; font-weight: 500;
+            display: flex; align-items: center; gap: 7px;
+            font-weight: 500;
         }
 
         .ws-dot {
-            width: 7px; height: 7px;
+            width: 8px; height: 8px;
             border-radius: 50%;
-            background: var(--amber);
-            transition: background 0.5s;
-            flex-shrink: 0;
+            background: var(--purple);
+            transition: all 0.4s;
+            box-shadow: 0 0 8px var(--pink-glow);
         }
 
-        .ws-dot.connected { background: var(--green); animation: pulse-dot 2.5s ease-in-out infinite; }
-        .ws-dot.demo      { background: var(--amber); animation: pulse-dot 3s ease-in-out infinite; }
-        .ws-dot.error     { background: var(--red); }
+        .ws-dot.connected { background: var(--pink); animation: pulse-dot 2.6s ease-in-out infinite; }
+        .ws-dot.demo      { background: var(--purple); animation: pulse-dot 3.2s ease-in-out infinite; }
 
         .ws-label { color: var(--text-secondary); }
 
         .user-tag {
-            font-family: var(--font-mono);
-            font-size: 0.68rem;
-            color: var(--cyan);
-            background: var(--cyan-dim);
-            padding: 3px 12px;
+            font-size: 0.7rem;
+            color: var(--pink);
+            background: var(--pink-dim);
+            padding: 4px 14px;
             border-radius: 100px;
-            border: 1px solid rgba(0,229,195,0.18);
-            letter-spacing: 0.04em;
+            border: 1px solid var(--border-pink);
+            box-shadow: 0 0 12px var(--pink-glow);
         }
 
-        /* ---- Panels ---- */
+        /* Panels */
         .panel {
-            background: var(--bg-surface);
-            border: 1px solid var(--border);
-            border-radius: var(--radius-lg);
+            background: var(--bg-glass);
+            backdrop-filter: blur(14px) saturate(1.1);
+            border: 1px solid var(--border-pink);
+            border-radius: var(--radius-xl);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.4), 0 0 20px var(--pink-glow);
             overflow: hidden;
-            margin-bottom: 20px;
-            transition: border-color 0.25s ease;
+            margin-bottom: 24px;
+            transition: all 0.3s ease;
         }
 
-        .panel:hover { border-color: var(--border-bright); }
-
-        /* FIX: use explicit classes instead of broken nth-child (header/status-bar are siblings) */
-        .panel-admin { animation: slideDown 0.55s 0.15s var(--ease-spring) both; }
-        .panel-feed  { animation: slideDown 0.55s 0.25s var(--ease-spring) both; }
+        .panel:hover {
+            border-color: var(--border-focus);
+            box-shadow: 0 12px 40px rgba(0,0,0,0.45), 0 0 32px var(--pink-glow);
+            transform: translateY(-3px);
+        }
 
         .panel-header {
-            display: flex; align-items: center; gap: 12px;
-            padding: 18px 24px;
-            border-bottom: 1px solid var(--border);
-            background: var(--bg-elevated);
-            position: relative;
-            overflow: hidden;
+            display: flex; align-items: center; gap: 14px;
+            padding: 20px 26px;
+            border-bottom: 1px solid var(--border-pink);
+            background: linear-gradient(to bottom, rgba(255,105,180,0.07), transparent);
         }
 
         .panel-header::before {
             content: '';
             position: absolute; left: 0; top: 0; bottom: 0;
-            width: 2px;
+            width: 3px;
+            background: var(--pink);
+            box-shadow: 0 0 12px var(--pink-glow);
         }
-
-        .panel-admin .panel-header::before { background: linear-gradient(to bottom, var(--amber), transparent); }
-        .panel-feed  .panel-header::before { background: linear-gradient(to bottom, var(--cyan), transparent); }
 
         .panel-icon {
-            width: 32px; height: 32px;
-            border-radius: var(--radius-xs);
+            width: 38px; height: 38px;
+            border-radius: var(--radius-sm);
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
+            background: var(--pink-dim);
+            border: 1px solid var(--border-pink);
+            backdrop-filter: blur(6px);
+            color: var(--pink);
+            box-shadow: 0 0 14px var(--pink-glow);
         }
-
-        .panel-icon.admin {
-            background: var(--amber-dim);
-            border: 1px solid rgba(255,181,71,0.22);
-            color: var(--amber);
-        }
-
-        .panel-icon.notif {
-            background: var(--cyan-dim);
-            border: 1px solid rgba(0,229,195,0.22);
-            color: var(--cyan);
-        }
-
-        .panel-titles { flex: 1; }
 
         .panel-title {
             font-family: var(--font-display);
-            font-size: 0.92rem;
+            font-size: 1rem;
             font-weight: 700;
             color: var(--text-primary);
-            letter-spacing: -0.01em;
         }
 
         .panel-meta {
-            font-size: 0.65rem;
+            font-size: 0.68rem;
             color: var(--text-muted);
             letter-spacing: 0.1em;
             text-transform: uppercase;
-            margin-top: 2px;
+            margin-top: 3px;
         }
 
-        .panel-body { padding: 24px; }
+        .panel-body { padding: 26px; }
 
-        /* ---- Form Controls ---- */
-        .field-group { margin-bottom: 16px; }
+        /* Form Controls */
+        .field-group { margin-bottom: 20px; }
 
         .field-label {
             display: block;
-            font-size: 0.65rem;
-            letter-spacing: 0.14em;
+            font-size: 0.68rem;
+            letter-spacing: 0.13em;
             text-transform: uppercase;
             color: var(--text-muted);
-            margin-bottom: 9px;
+            margin-bottom: 10px;
             font-weight: 500;
         }
 
         .styled-input {
             width: 100%;
-            padding: 12px 16px;
-            background: var(--bg-base);
-            border: 1px solid var(--border-bright);
-            border-radius: var(--radius-sm);
+            padding: 13px 18px;
+            background: rgba(40, 30, 55, 0.4);
+            border: 1px solid var(--border-pink);
+            border-radius: var(--radius-md);
             color: var(--text-primary);
             font-family: var(--font-mono);
-            font-size: 0.83rem;
-            transition: border-color 0.2s, box-shadow 0.2s;
-            outline: none;
+            font-size: 0.86rem;
+            transition: all 0.25s;
+            backdrop-filter: blur(6px);
         }
 
         .styled-input:focus {
-            border-color: var(--cyan);
-            box-shadow: 0 0 0 3px var(--cyan-dim);
+            border-color: var(--pink);
+            box-shadow: 0 0 0 4px var(--pink-dim), 0 0 18px var(--pink-glow);
+            background: rgba(255,105,180,0.07);
         }
 
-        .styled-input::placeholder { color: var(--text-muted); }
+        .styled-input::placeholder { color: var(--text-muted); opacity: 0.65; }
 
-        /* ---- Type Chips ---- */
+        /* Type Chips */
         .type-chips {
-            display: flex; gap: 8px; flex-wrap: wrap;
+            display: flex; gap: 10px; flex-wrap: wrap;
         }
 
         .type-chip {
-            display: flex; align-items: center; gap: 7px;
-            padding: 8px 15px;
+            display: flex; align-items: center; gap: 8px;
+            padding: 9px 17px;
             border-radius: 100px;
-            border: 1px solid var(--border-bright);
-            background: var(--bg-base);
+            border: 1px solid var(--border-pink);
+            background: rgba(255,105,180,0.05);
             color: var(--text-secondary);
-            font-family: var(--font-mono);
-            font-size: 0.74rem;
+            font-size: 0.78rem;
             cursor: pointer;
-            transition: all 0.2s;
-            font-weight: 400;
+            transition: all 0.25s;
+            backdrop-filter: blur(8px);
         }
 
         .type-chip:hover {
-            border-color: rgba(255,255,255,0.25);
+            border-color: var(--border-focus);
             color: var(--text-primary);
             background: var(--bg-hover);
+            box-shadow: 0 0 16px var(--pink-glow);
         }
 
-        .type-chip.active-order   { background: var(--cyan-dim);  border-color: rgba(0,229,195,0.4);   color: var(--cyan); }
-        .type-chip.active-message { background: var(--green-dim); border-color: rgba(46,255,160,0.4); color: var(--green); }
-        /* FIX: was active-system, now consistent active-system_alert */
-        .type-chip.active-system_alert { background: var(--red-dim);   border-color: rgba(255,77,106,0.4);  color: var(--red); }
+        .type-chip.active-order   { background: var(--pink-dim);  border-color: var(--pink); color: var(--pink); }
+        .type-chip.active-message { background: var(--purple-dim); border-color: var(--purple); color: var(--purple); }
+        .type-chip.active-system_alert { background: var(--pink-dim); border-color: var(--pink); color: var(--pink); }
 
         .chip-dot {
-            width: 6px; height: 6px;
+            width: 7px; height: 7px;
             border-radius: 50%;
             background: currentColor;
+            box-shadow: 0 0 6px currentColor;
         }
 
-        /* ---- Send Button ---- */
+        /* Send Button */
         .send-btn {
             width: 100%;
-            padding: 14px 20px;
-            background: var(--cyan);
-            color: #07080c;
+            padding: 15px 22px;
+            background: linear-gradient(135deg, var(--pink), #ff4da6);
+            color: #0f0715;
             border: none;
-            border-radius: var(--radius-sm);
+            border-radius: var(--radius-lg);
             font-family: var(--font-display);
-            font-size: 0.86rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            letter-spacing: 0.05em;
+            letter-spacing: 0.04em;
             cursor: pointer;
-            transition: all 0.22s;
-            display: flex; align-items: center; justify-content: center; gap: 9px;
-            margin-top: 20px;
-            box-shadow: 0 0 28px var(--cyan-glow);
+            transition: all 0.28s;
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+            margin-top: 24px;
+            box-shadow: 0 0 32px var(--pink-glow);
             position: relative;
             overflow: hidden;
         }
 
-        /* Shimmer sweep */
-        .send-btn::before {
-            content: '';
-            position: absolute;
-            top: 0; left: -75%;
-            width: 50%; height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.3), transparent);
-            transform: skewX(-20deg);
-            transition: none;
-        }
-
-        .send-btn:hover::before {
-            animation: shimmer 0.6s ease forwards;
-        }
-
         .send-btn:hover {
-            background: #05f5d4;
-            box-shadow: 0 0 44px var(--cyan-mid), 0 6px 20px rgba(0,229,195,0.28);
-            transform: translateY(-2px);
+            transform: translateY(-3px);
+            box-shadow: 0 0 48px var(--pink-glow);
         }
 
         .send-btn:active { transform: translateY(0); }
-        .send-btn svg { flex-shrink: 0; }
 
-        /* ---- Feed Toolbar ---- */
+        /* Feed Toolbar */
         .feed-toolbar {
             display: flex; align-items: center; justify-content: space-between;
-            padding: 13px 24px;
-            border-bottom: 1px solid var(--border);
-            background: var(--bg-elevated);
+            padding: 14px 26px;
+            border-bottom: 1px solid var(--border-pink);
+            background: rgba(255,105,180,0.04);
         }
 
         .notif-count {
-            display: flex; align-items: center; gap: 8px;
-            font-size: 0.68rem;
+            display: flex; align-items: center; gap: 10px;
+            font-size: 0.72rem;
             color: var(--text-muted);
             letter-spacing: 0.1em;
             text-transform: uppercase;
         }
 
         .count-badge {
-            display: inline-flex; align-items: center; justify-content: center;
-            min-width: 20px; height: 20px;
-            padding: 0 6px;
-            background: var(--cyan-dim);
-            border: 1px solid rgba(0,229,195,0.22);
+            min-width: 22px; height: 22px;
+            padding: 0 8px;
+            background: var(--pink-dim);
+            border: 1px solid var(--border-pink);
             border-radius: 100px;
-            font-size: 0.65rem;
-            color: var(--cyan);
+            font-size: 0.68rem;
+            color: var(--pink);
             font-weight: 600;
-            transition: transform 0.2s var(--ease-spring);
+            box-shadow: 0 0 12px var(--pink-glow);
         }
-
-        .count-badge.pop { animation: badge-pop 0.35s var(--ease-spring); }
 
         .clear-btn {
-            font-size: 0.65rem;
+            font-size: 0.68rem;
             color: var(--text-muted);
-            letter-spacing: 0.08em;
-            text-transform: uppercase;
             background: none;
-            border: none;
+            border: 1px solid var(--border-pink);
+            border-radius: var(--radius-sm);
+            padding: 6px 12px;
             cursor: pointer;
-            font-family: var(--font-mono);
-            padding: 5px 10px;
-            border-radius: var(--radius-xs);
-            transition: color 0.2s, background 0.2s;
+            transition: all 0.22s;
         }
 
-        .clear-btn:hover { color: var(--red); background: var(--red-dim); }
+        .clear-btn:hover {
+            color: var(--pink);
+            background: var(--pink-dim);
+            box-shadow: 0 0 16px var(--pink-glow);
+        }
 
-        /* ---- Feed ---- */
+        /* Feed */
         #feed {
-            padding: 14px;
-            max-height: 500px;
+            padding: 16px;
+            max-height: 520px;
             overflow-y: auto;
             scrollbar-width: thin;
-            scrollbar-color: var(--border-bright) transparent;
+            scrollbar-color: var(--border-pink) transparent;
         }
 
-        #feed::-webkit-scrollbar { width: 3px; }
+        #feed::-webkit-scrollbar { width: 4px; }
         #feed::-webkit-scrollbar-track { background: transparent; }
-        #feed::-webkit-scrollbar-thumb { background: var(--border-bright); border-radius: 2px; }
+        #feed::-webkit-scrollbar-thumb { background: var(--border-pink); border-radius: 4px; }
 
-        /* ---- Empty State ---- */
+        /* Empty State */
         .empty-state {
             text-align: center;
-            padding: 56px 20px;
+            padding: 64px 20px;
             color: var(--text-muted);
         }
 
         .empty-ring {
-            width: 60px; height: 60px;
+            width: 68px; height: 68px;
             border-radius: 50%;
-            border: 1.5px solid var(--border-bright);
+            border: 2px solid var(--border-pink);
             display: flex; align-items: center; justify-content: center;
-            margin: 0 auto 16px;
-            animation: breathe 3.5s ease-in-out infinite;
-            box-shadow: 0 0 0 0 var(--cyan-dim);
+            margin: 0 auto 20px;
+            animation: breathe 4s ease-in-out infinite;
+            box-shadow: 0 0 20px var(--pink-glow);
         }
 
-        .empty-ring svg { opacity: 0.25; }
+        .empty-ring svg { opacity: 0.4; color: var(--pink); }
 
-        .empty-state p {
-            font-size: 0.75rem;
-            letter-spacing: 0.12em;
-            text-transform: uppercase;
-            color: var(--text-muted);
-        }
-
-        .empty-state span {
-            display: block;
-            font-size: 0.62rem;
-            margin-top: 6px;
-            color: var(--text-muted);
-            opacity: 0.6;
-            letter-spacing: 0.06em;
-        }
-
-        /* ---- Notification Card ---- */
+        /* Notification Card */
         .notification {
             display: flex;
-            gap: 14px;
-            padding: 14px 16px;
-            margin-bottom: 8px;
-            border-radius: var(--radius-md);
-            border: 1px solid var(--border);
-            background: var(--bg-elevated);
-            transition: border-color 0.2s, transform 0.2s, box-shadow 0.2s;
-            animation: notifSlide 0.38s var(--ease-spring) both;
+            gap: 16px;
+            padding: 16px 20px;
+            margin-bottom: 12px;
+            border-radius: var(--radius-lg);
+            border: 1px solid var(--border-pink);
+            background: var(--bg-glass);
+            backdrop-filter: blur(12px);
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 20px var(--pink-glow);
             position: relative;
             overflow: hidden;
+            animation: notifSlide 0.45s var(--ease-spring) both;
         }
 
-        /* Left accent bar */
+        .notification:hover {
+            transform: translateX(6px);
+            border-color: var(--border-focus);
+            box-shadow: 0 8px 32px var(--pink-glow);
+        }
+
         .notification::before {
             content: '';
             position: absolute;
             left: 0; top: 0; bottom: 0;
-            width: 3px;
+            width: 4px;
+            background: var(--pink);
+            box-shadow: 0 0 12px var(--pink-glow);
         }
-
-        /* Subtle type-tinted background */
-        .notification::after {
-            content: '';
-            position: absolute; inset: 0;
-            opacity: 0;
-            transition: opacity 0.2s;
-        }
-
-        .notification:hover {
-            transform: translateX(4px);
-            box-shadow: -4px 0 20px rgba(0,0,0,0.3);
-        }
-
-        .notification:hover::after { opacity: 1; }
-
-        /* FIX: was .notification.system — corrected to .notification.system_alert */
-        .notification.order_status::before         { background: var(--cyan); }
-        .notification.order_status::after          { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(0,229,195,0.05), transparent); }
-        .notification.order_status:hover           { border-color: rgba(0,229,195,0.25); }
-
-        .notification.message::before              { background: var(--green); }
-        .notification.message::after               { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(46,255,160,0.05), transparent); }
-        .notification.message:hover                { border-color: rgba(46,255,160,0.25); }
-
-        .notification.system_alert::before         { background: var(--red); }
-        .notification.system_alert::after          { background: radial-gradient(ellipse 80% 60% at 0% 50%, rgba(255,77,106,0.05), transparent); }
-        .notification.system_alert:hover           { border-color: rgba(255,77,106,0.25); }
 
         .notif-icon-wrap {
-            width: 36px; height: 36px;
-            border-radius: var(--radius-xs);
+            width: 42px; height: 42px;
+            border-radius: var(--radius-sm);
             display: flex; align-items: center; justify-content: center;
             flex-shrink: 0;
             margin-top: 2px;
-            position: relative; z-index: 1;
+            background: var(--pink-dim);
+            border: 1px solid var(--border-pink);
+            backdrop-filter: blur(6px);
+            color: var(--pink);
+            box-shadow: 0 0 14px var(--pink-glow);
         }
-
-        /* FIX: was .notification.system — now .notification.system_alert */
-        .notification.order_status  .notif-icon-wrap { background: var(--cyan-dim);  color: var(--cyan); }
-        .notification.message       .notif-icon-wrap { background: var(--green-dim); color: var(--green); }
-        .notification.system_alert  .notif-icon-wrap { background: var(--red-dim);   color: var(--red); }
-
-        .notif-content { flex: 1; min-width: 0; position: relative; z-index: 1; }
 
         .notif-type-tag {
             display: inline-block;
-            font-size: 0.6rem;
-            letter-spacing: 0.15em;
+            font-size: 0.64rem;
+            letter-spacing: 0.14em;
             text-transform: uppercase;
             font-weight: 600;
-            padding: 2px 9px;
+            padding: 3px 10px;
             border-radius: 100px;
-            margin-bottom: 7px;
+            margin-bottom: 8px;
+            background: var(--pink-dim);
+            color: var(--pink);
+            border: 1px solid var(--border-pink);
         }
 
-        /* FIX: was .notification.system — now .notification.system_alert */
-        .notification.order_status .notif-type-tag { color: var(--cyan);  background: var(--cyan-dim); }
-        .notification.message      .notif-type-tag { color: var(--green); background: var(--green-dim); }
-        .notification.system_alert .notif-type-tag { color: var(--red);   background: var(--red-dim); }
-
         .notif-message {
-            font-size: 0.82rem;
+            font-size: 0.86rem;
             color: var(--text-primary);
-            line-height: 1.5;
+            line-height: 1.55;
             word-break: break-word;
         }
 
         .notif-time {
-            font-size: 0.64rem;
+            font-size: 0.66rem;
             color: var(--text-muted);
-            margin-top: 6px;
-            letter-spacing: 0.06em;
+            margin-top: 8px;
+            letter-spacing: 0.05em;
             font-style: italic;
         }
 
-        /* ---- Animations ---- */
+        /* Animations */
         @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-18px); }
+            from { opacity: 0; transform: translateY(-20px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
         @keyframes notifSlide {
-            from { opacity: 0; transform: translateX(-14px) scale(0.98); }
+            from { opacity: 0; transform: translateX(-16px) scale(0.97); }
             to   { opacity: 1; transform: translateX(0) scale(1); }
         }
 
         @keyframes pulse-dot {
             0%, 100% { opacity: 1; transform: scale(1); }
-            50%       { opacity: 0.45; transform: scale(0.65); }
-        }
-
-        @keyframes shimmer {
-            0%   { left: -75%; }
-            100% { left: 140%; }
-        }
-
-        @keyframes badge-pop {
-            0%   { transform: scale(1); }
-            40%  { transform: scale(1.4); }
-            100% { transform: scale(1); }
+            50%      { opacity: 0.5; transform: scale(0.7); }
         }
 
         @keyframes breathe {
-            0%, 100% { box-shadow: 0 0 0 0 var(--cyan-dim); border-color: var(--border-bright); }
-            50%       { box-shadow: 0 0 0 8px transparent; border-color: rgba(0,229,195,0.15); }
+            0%, 100% { box-shadow: 0 0 0 0 var(--pink-dim); border-color: var(--border-pink); }
+            50%      { box-shadow: 0 0 0 14px transparent; border-color: var(--border-focus); }
         }
 
-        /* ---- Responsive ---- */
+        /* Responsive */
         @media (max-width: 540px) {
-            .app-wrapper    { padding: 28px 14px 64px; }
-            .app-title      { font-size: 1.45rem; }
-            .type-chip      { padding: 7px 11px; font-size: 0.7rem; }
-            .panel-body     { padding: 18px 16px; }
-            .panel-header   { padding: 15px 18px; }
-            .feed-toolbar   { padding: 12px 18px; }
-            #feed           { padding: 10px; }
-            .live-badge     { padding: 5px 10px; }
+            .app-wrapper    { padding: 32px 16px 80px; }
+            .app-title      { font-size: 1.6rem; }
+            .panel-body     { padding: 20px; }
+            .panel-header   { padding: 16px 20px; }
+            .feed-toolbar   { padding: 12px 20px; }
+            #feed           { padding: 12px; }
         }
     </style>
 </head>
@@ -642,14 +539,14 @@
     <!-- Header -->
     <header class="app-header">
         <div class="logo-mark">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                 <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                 <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
             </svg>
         </div>
         <div class="header-text">
-            <div class="app-title">Pulse<span class="dot">.</span></div>
-            <div class="app-sub">Real-time notification system</div>
+            <div class="app-title">Redis Notification System<span class="dot">.</span></div>
+            <div class="app-sub">real-time notifications</div>
         </div>
         <div class="live-badge">
             <span class="live-dot"></span>
@@ -664,7 +561,7 @@
                 <span class="ws-dot" id="wsDot"></span>
                 <span class="ws-label" id="wsLabel">Connecting...</span>
             </div>
-            <span class="status-sep">|</span>
+            <span class="status-sep">•</span>
             <span>SSE Stream</span>
         </div>
         <span class="user-tag">user123</span>
@@ -673,8 +570,8 @@
     <!-- Admin Panel -->
     <div class="panel panel-admin">
         <div class="panel-header">
-            <div class="panel-icon admin">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="panel-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M12 20h9"/>
                     <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/>
                 </svg>
@@ -700,7 +597,7 @@
                 </div>
                 <input type="hidden" id="notifType" value="order_status">
             </div>
-            <div class="field-group" style="margin-top:20px;">
+            <div class="field-group" style="margin-top:24px;">
                 <label class="field-label" for="notifMessage">Message Content</label>
                 <input
                     class="styled-input"
@@ -711,7 +608,7 @@
                 />
             </div>
             <button class="send-btn" onclick="sendNotification()">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <line x1="22" y1="2" x2="11" y2="13"/>
                     <polygon points="22 2 15 22 11 13 2 9 22 2"/>
                 </svg>
@@ -723,8 +620,8 @@
     <!-- Notification Feed Panel -->
     <div class="panel panel-feed">
         <div class="panel-header">
-            <div class="panel-icon notif">
-                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="panel-icon">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                     <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                 </svg>
@@ -746,7 +643,7 @@
         <div id="feed">
             <div class="empty-state" id="emptyState">
                 <div class="empty-ring">
-                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round">
                         <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
                         <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
                     </svg>
@@ -760,181 +657,169 @@
 </div>
 
 <script>
-    const USER_ID   = "user123";
-    const feed      = document.getElementById('feed');
-    const emptyState = document.getElementById('emptyState');
-    const countBadge = document.getElementById('countBadge');
-    const wsDot     = document.getElementById('wsDot');
-    const wsLabel   = document.getElementById('wsLabel');
-    let notifCount  = 0;
-    let isDemoMode  = false;
 
-    /* ---- SVG icon map (FIX: <triangle> replaced with valid <polygon>) ---- */
-    const typeIcons = {
-        order_status: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/>
-            <polyline points="16.5 9.4 7.55 4.24"/>
-            <polyline points="3.29 7 12 12 20.71 7"/>
-            <line x1="12" y1="22" x2="12" y2="12"/>
-            <circle cx="18.5" cy="15.5" r="2.5"/>
-            <path d="M20.27 17.27L22 19"/>
-        </svg>`,
-        message: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
-        </svg>`,
-        /* FIX: was invalid <triangle> SVG element — replaced with <polygon> */
-        system_alert: `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polygon points="10.29 3.86 1.82 18 22.18 18"/>
-            <line x1="12" y1="9" x2="12" y2="13"/>
-            <line x1="12" y1="17" x2="12.01" y2="17"/>
-        </svg>`
+const USER_ID   = "user123";
+const feed      = document.getElementById('feed');
+const emptyState = document.getElementById('emptyState');
+const countBadge = document.getElementById('countBadge');
+const wsDot     = document.getElementById('wsDot');
+const wsLabel   = document.getElementById('wsLabel');
+let notifCount  = 0;
+let isDemoMode  = false;
+
+const typeIcons = {
+    order_status: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 10V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l2-1.14"/>
+        <polyline points="16.5 9.4 7.55 4.24"/>
+        <polyline points="3.29 7 12 12 20.71 7"/>
+        <line x1="12" y1="22" x2="12" y2="12"/>
+    </svg>`,
+    message: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+    </svg>`,
+    system_alert: `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M10.29 3.86L1.82 18h20.36l-8.47-14.14a2 2 0 0 0-3.42 0z"/>
+        <line x1="12" y1="9" x2="12" y2="13"/>
+        <line x1="12" y1="17" x2="12.01" y2="17"/>
+    </svg>`
+};
+
+const typeLabels = {
+    order_status:  'Order Status',
+    message:       'Direct Message',
+    system_alert:  'System Alert'
+};
+
+function selectType(el, type) {
+    document.getElementById('notifType').value = type;
+    document.querySelectorAll('.type-chip').forEach(c => c.className = 'type-chip');
+    const map = {
+        order_status:  'active-order',
+        message:       'active-message',
+        system_alert:  'active-system_alert'
     };
+    el.className = 'type-chip ' + map[type];
+}
 
-    const typeLabels = {
-        order_status:  'Order Status',
-        message:       'Direct Message',
-        system_alert:  'System Alert'
-    };
+let eventSource;
+function connectLiveStream() {
+    try {
+        eventSource = new EventSource(`/stream/${USER_ID}`);
 
-    /* ---- Chip selector (FIX: class name now matches active-system_alert) ---- */
-    function selectType(el, type) {
-        document.getElementById('notifType').value = type;
-        document.querySelectorAll('.type-chip').forEach(c => { c.className = 'type-chip'; });
-        const classMap = {
-            order_status:  'active-order',
-            message:       'active-message',
-            system_alert:  'active-system_alert'   // FIX: was 'active-system'
+        eventSource.onopen = () => {
+            wsDot.className = 'ws-dot connected';
+            wsLabel.textContent = 'Connected';
+            wsLabel.style.color = 'var(--pink)';
+            isDemoMode = false;
         };
-        el.className = 'type-chip ' + classMap[type];
+
+        eventSource.onerror = () => {
+            if (!isDemoMode) {
+                isDemoMode = true;
+                wsDot.className = 'ws-dot demo';
+                wsLabel.textContent = 'Demo Mode';
+                wsLabel.style.color = 'var(--purple)';
+            }
+        };
+
+        eventSource.onmessage = (event) => {
+            try {
+                const notif = JSON.parse(event.data);
+                addNotificationToUI(notif, false);
+            } catch(e) {}
+        };
+    } catch(e) {
+        isDemoMode = true;
+        wsDot.className = 'ws-dot demo';
+        wsLabel.textContent = 'Demo Mode';
+        wsLabel.style.color = 'var(--purple)';
+    }
+}
+
+async function loadHistory() {
+    try {
+        const res = await fetch(`/history/${USER_ID}`);
+        if (!res.ok) return;
+        const history = await res.json();
+        if (Array.isArray(history)) history.forEach(n => addNotificationToUI(n, true));
+    } catch(e) {}
+}
+
+function addNotificationToUI(notif, isHistory = false) {
+    if (emptyState && emptyState.parentNode === feed) emptyState.remove();
+
+    notifCount++;
+    countBadge.textContent = notifCount;
+    countBadge.classList.remove('pop');
+    void countBadge.offsetWidth;
+    countBadge.classList.add('pop');
+
+    const type  = notif.type || 'order_status';
+    const label = typeLabels[type] || type;
+    const icon  = typeIcons[type]  || typeIcons.order_status;
+
+    const date = notif.timestamp
+        ? new Date(parseFloat(notif.timestamp) * 1000).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'})
+        : new Date().toLocaleTimeString([], {hour:'2-digit', minute:'2-digit', second:'2-digit'});
+
+    const div = document.createElement('div');
+    div.className = `notification ${type}`;
+    div.innerHTML = `
+        <div class="notif-icon-wrap">${icon}</div>
+        <div class="notif-content">
+            <span class="notif-type-tag">${label}</span>
+            <div class="notif-message"></div>
+            <div class="notif-time">${date}</div>
+        </div>
+    `;
+    div.querySelector('.notif-message').textContent = notif.message || '';
+
+    isHistory ? feed.appendChild(div) : feed.prepend(div);
+}
+
+async function sendNotification() {
+    const type = document.getElementById('notifType').value;
+    const msg  = document.getElementById('notifMessage').value.trim();
+    const input = document.getElementById('notifMessage');
+
+    if (!msg) {
+        input.focus();
+        input.style.borderColor = 'var(--pink)';
+        input.style.boxShadow = '0 0 0 4px var(--pink-dim)';
+        setTimeout(() => {
+            input.style.borderColor = '';
+            input.style.boxShadow = '';
+        }, 1400);
+        return;
     }
 
-    /* ---- SSE Connection (graceful demo fallback) ---- */
-    let eventSource;
-    function connectLiveStream() {
-        try {
-            eventSource = new EventSource(`/stream/${USER_ID}`);
+    let sent = false;
+    try {
+        const res = await fetch('/send', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ user_id: USER_ID, notif_type: type, message: msg })
+        });
+        if (res.ok) sent = true;
+    } catch(e) {}
 
-            eventSource.onopen = () => {
-                wsDot.className  = 'ws-dot connected';
-                wsLabel.textContent   = 'Connected';
-                wsLabel.style.color   = 'var(--green)';
-                isDemoMode = false;
-            };
-
-            eventSource.onerror = () => {
-                if (!isDemoMode) {
-                    isDemoMode = true;
-                    wsDot.className       = 'ws-dot demo';
-                    wsLabel.textContent   = 'Demo Mode';
-                    wsLabel.style.color   = 'var(--amber)';
-                }
-            };
-
-            eventSource.onmessage = (event) => {
-                try {
-                    const notif = JSON.parse(event.data);
-                    addNotificationToUI(notif, false);
-                } catch(e) { /* malformed payload */ }
-            };
-        } catch(e) {
-            isDemoMode = true;
-            wsDot.className     = 'ws-dot demo';
-            wsLabel.textContent = 'Demo Mode';
-            wsLabel.style.color = 'var(--amber)';
-        }
+    if (!sent) {
+        addNotificationToUI({ type, message: msg, timestamp: Date.now()/1000 }, false);
     }
 
-    /* ---- Load history ---- */
-    async function loadHistory() {
-        try {
-            const res = await fetch(`/history/${USER_ID}`);
-            if (!res.ok) return;
-            const history = await res.json();
-            if (Array.isArray(history)) history.forEach(n => addNotificationToUI(n, true));
-        } catch(e) { /* no backend — silently skip */ }
-    }
+    input.value = '';
+}
 
-    /* ---- Render notification (XSS-safe via textContent) ---- */
-    function addNotificationToUI(notif, isHistory = false) {
-        if (emptyState && emptyState.parentNode === feed) emptyState.remove();
+function clearFeed() {
+    feed.innerHTML = '';
+    notifCount = 0;
+    countBadge.textContent = '0';
+    feed.appendChild(emptyState);
+}
 
-        notifCount++;
-        countBadge.textContent = notifCount;
-        countBadge.classList.remove('pop');
-        void countBadge.offsetWidth; // reflow to retrigger animation
-        countBadge.classList.add('pop');
-
-        const type  = notif.type || 'order_status';
-        const label = typeLabels[type] || type;
-        const icon  = typeIcons[type]  || typeIcons['order_status'];
-
-        const date = notif.timestamp
-            ? new Date(parseFloat(notif.timestamp) * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
-            : new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-        const div = document.createElement('div');
-        div.className = `notification ${type}`;
-        div.innerHTML = `
-            <div class="notif-icon-wrap">${icon}</div>
-            <div class="notif-content">
-                <span class="notif-type-tag">${label}</span>
-                <div class="notif-message"></div>
-                <div class="notif-time">${date}</div>
-            </div>
-        `;
-        div.querySelector('.notif-message').textContent = notif.message || '';
-
-        if (isHistory) feed.appendChild(div);
-        else           feed.prepend(div);
-    }
-
-    /* ---- Send notification ---- */
-    async function sendNotification() {
-        const type = document.getElementById('notifType').value;
-        const msg  = document.getElementById('notifMessage').value.trim();
-        const input = document.getElementById('notifMessage');
-
-        if (!msg) {
-            input.focus();
-            input.style.borderColor = 'var(--red)';
-            input.style.boxShadow   = '0 0 0 3px var(--red-dim)';
-            setTimeout(() => {
-                input.style.borderColor = '';
-                input.style.boxShadow   = '';
-            }, 1300);
-            return;
-        }
-
-        let sentViaBackend = false;
-        try {
-            const res = await fetch('/send', {
-                method:  'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body:    JSON.stringify({ user_id: USER_ID, notif_type: type, message: msg })
-            });
-            if (res.ok) sentViaBackend = true;
-        } catch(e) { /* no backend */ }
-
-        /* Demo fallback — show locally if no backend responded */
-        if (!sentViaBackend) {
-            addNotificationToUI({ type, message: msg, timestamp: Date.now() / 1000 }, false);
-        }
-
-        input.value = '';
-    }
-
-    /* ---- Clear feed ---- */
-    function clearFeed() {
-        feed.innerHTML = '';
-        notifCount = 0;
-        countBadge.textContent = '0';
-        feed.appendChild(emptyState);
-    }
-
-    /* ---- Init ---- */
-    connectLiveStream();
-    loadHistory();
+// Init
+connectLiveStream();
+loadHistory();
 </script>
 </body>
 </html>
-```
