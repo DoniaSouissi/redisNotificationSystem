@@ -21,6 +21,7 @@ def send_notification(user_id, notif_type, message):
     # Maintain history using Lists
     history_key = f"history:{user_id}"
     r.lpush(history_key, notif_key)
+    r.ltrim(history_key, 0, 99)  # Keep only the latest 100 notifications in history
     
     # 5. Real-Time Analytics
     # Use a Counter to monitor the number of notifications by type

@@ -26,5 +26,5 @@ def view_analytics():
             print(f"{t}: {count} notifications")
 
 if __name__ == "__main__":
-    view_history("St001")
+    view_history("client1")
     view_analytics()

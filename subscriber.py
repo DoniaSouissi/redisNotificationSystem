@@ -15,5 +15,5 @@ def listen_for_notifications(user_id):
             print(f"REAL-TIME ALERT: {message['data']}")
 
 if __name__ == "__main__":
-    # Simulating student St001 listening for notifications
-    listen_for_notifications("St001")
+    # Simulating client1 listening for notifications
+    listen_for_notifications("client1")

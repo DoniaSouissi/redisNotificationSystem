@@ -6,7 +6,7 @@ import json
 app = Flask(__name__)
 
 # Connect to the myredis2 container
-r = redis.Redis(host='localhost', port=6380, decode_responses=True)
+r = redis.Redis(host='localhost', port=6379, decode_responses=True)
 
 @app.route('/')
 def index():
@@ -32,6 +32,7 @@ def send_notification():
     
     history_key = f"history:{user_id}"
     r.lpush(history_key, notif_key)
+    r.ltrim(history_key, 0, 99)
     
     # 3. Real-Time Analytics (Counters)
     r.incr(f"analytics:{notif_type}")
