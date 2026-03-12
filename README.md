@@ -35,7 +35,7 @@ To run this real-time notification system and web application:
 
 **Clone the repository:**
 ```bash
-git clone (https://github.com/YourUsername/redisNotificationSystem.git)
+git clone https://github.com/YourUsername/redisNotificationSystem.git
 cd redisNotificationSystem
 ```
 
