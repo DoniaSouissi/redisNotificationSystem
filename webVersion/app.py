@@ -2,11 +2,15 @@ from flask import Flask, render_template, request, jsonify, Response
 import redis
 import time
 import json
+import os
 
 app = Flask(__name__)
 
-# Connect to the myredis2 container
-r = redis.Redis(host='localhost', port=6379, decode_responses=True)
+# Grab host and port from environment variables (set by docker-compose), with defaults for local development
+REDIS_HOST = os.getenv('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.getenv('REDIS_PORT', 6380))
+
+r = redis.Redis(host=REDIS_HOST, port=REDIS_PORT, decode_responses=True)
 
 @app.route('/')
 def index():

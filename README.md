@@ -2,10 +2,11 @@
 
 A robust, real-time notification system built with Python and Redis. This project demonstrates core Redis data structures and paradigms to handle event logging, real-time pub/sub messaging, limited history tracking, auto-expiring keys, and analytics. 
 
-## ✨ Bonus Feature: Web UI Dashboard
-While the core requirements of this project were met using Python CLI scripts, **I built a fully functional Web Interface as an added bonus** to make the user experience easier and more visual. 
+## ✨ Bonus Features: Web UI & Docker Containerization
+While the core requirements of this project were met using Python CLI scripts, **I built a fully functional Web Interface and fully containerized the application using Docker** as added bonuses to make the project production-ready and visually accessible.
 
-The web version is powered by **Flask** and uses **Server-Sent Events (SSE)** to stream Redis Pub/Sub messages directly to the browser. This allows the UI to update in real-time without ever needing to refresh the page!
+* **Web Dashboard:** Powered by **Flask** and uses **Server-Sent Events (SSE)** to stream Redis Pub/Sub messages directly to the browser, updating the UI in real-time without refreshing.
+* **Docker Compose:** The entire environment (Redis database + Web application) can be spun up seamlessly using a single Docker Compose command.
 
 ## 🚀 Core Features & Project Requirements
 
@@ -23,10 +24,26 @@ The system uses Redis Pub/Sub to push notifications to active users instantly.
 To maintain a limited history of notifications for each user, the system uses Redis Lists. It uses `LPUSH` to add new notification keys to the user's history and strictly caps the list at the 100 most recent items using `LTRIM`. The history can be fetched at any time using `LRANGE`.
 
 ### 4. Automatic Expiration (Redis TTL)
-Notifications shouldn't live in the database forever. Using Redis's Time-to-Live (TTL) feature via the `EXPIRE` command, every specific notification hash is set to automatically delete itself after 24 hours (86400 seconds). The frontend and history retrievers are built to gracefully handle keys that have expired.
+Notifications shouldn't live in the database forever. Using Redis's Time-to-Live (TTL) feature via the `EXPIRE` command, every specific notification hash is set to automatically delete itself after 24 hours (86400 seconds). The frontend and history retrievers gracefully handle keys that have expired.
 
 ### 5. Real-Time Analytics (Redis Counters)
-The system tracks the volume of notifications by type (e.g., `order_update`, `message`, `system_alert`). It uses Redis atomic counters (`INCR`) to monitor how many of each notification type have been sent globally across the application.
+The system tracks the volume of notifications by type (e.g., `order_update`, `message`). It uses Redis atomic counters (`INCR`) to monitor how many of each notification type have been sent globally across the application.
+
+## 🛠️ Installation & Usage
+
+To run this real-time notification system and web application:
+
+**Clone the repository:**
+```bash
+git clone (https://github.com/YourUsername/redisNotificationSystem.git)
+cd redisNotificationSystem
+```
+
+**Build and run the environment:**
+Docker Compose will automatically install all dependencies, configure the network, and start both the Redis database and the Flask web server.
+```bash
+docker compose up --build
+```
 
 ## 📂 Project Structure
 
@@ -35,6 +52,9 @@ The system tracks the volume of notifications by type (e.g., `order_update`, `me
 │   ├── templates/
 │   │   └── index.html      # The bonus web UI (HTML/CSS/JS)
 │   └── app.py              # Flask server handling web endpoints & SSE
+├── Dockerfile              # Docker instructions for the Flask app
+├── docker-compose.yml      # Conductor for Redis & Web app services
+├── requirements.txt        # Python dependencies
 ├── dashboard.py            # CLI script to view a user's history & analytics
 ├── publisher.py            # CLI script to simulate sending notifications
-└── subscriber.py           # CLI script to simulate a user listening for alerts
+└── subscriber.py           # CLI script to simulate a user listening

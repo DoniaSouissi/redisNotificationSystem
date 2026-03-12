@@ -1,0 +1,23 @@
+version: '3.8'
+
+services:
+  # 1. The Redis Database Service
+  redis-server:
+    image: redis:latest
+    container_name: notification_redis
+    ports:
+      - "6380:6379" # Maps host port 6380 to container port 6379 (matches your setup)
+    restart: unless-stopped
+
+  # 2. The Flask Web Application Service
+  web-app:
+    build: .
+    container_name: notification_web
+    ports:
+      - "5000:5000" # Exposes the Flask app on port 5000
+    depends_on:
+      - redis-server
+    environment:
+      - REDIS_HOST=notification_redis
+      - REDIS_PORT=6379
+    restart: unless-stopped
